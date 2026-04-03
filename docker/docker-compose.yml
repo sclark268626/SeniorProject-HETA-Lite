@@ -1,0 +1,23 @@
+services:
+  heta-lite:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gpu
+    ports:
+      - "7860:7860"
+    environment:
+      - HETA_MODEL=Qwen/Qwen2.5-1.5B
+      - HF_TOKEN=${HF_TOKEN:-}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - heta-cache:/root/.cache/huggingface
+    restart: unless-stopped
+
+volumes:
+  heta-cache:

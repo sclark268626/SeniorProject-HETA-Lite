@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(findstr:*)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(netstat:*)",
+      "Bash(docker:*)",
+      "Bash(powershell -Command \"Start-Process ''C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe''\")",
+      "Bash(git remote add:*)",
+      "Bash(git stash:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash pop:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(pip3 install:*)",
+      "Bash(git fetch:*)",
+      "Bash(mkdir:*)",
+      "Bash(git reset:*)",
+      "Bash(conda info:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(source:*)",
+      "Bash(venv/Scripts/python.exe:*)"
+    ]
+  }
+}

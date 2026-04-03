@@ -75,7 +75,8 @@ EXAMPLE_PROMPTS = {
 CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
 
-:root {
+/* Force light mode: override Gradio dark theme variables */
+.dark, :root {
   --bg-start: #f6f9ff;
   --bg-end: #eef3fb;
   --panel: #ffffff;
@@ -86,11 +87,43 @@ CSS = """
   --accent-weak: #e4efff;
   --accent-strong: #1d4ed8;
   --warn: #dc2626;
+  /* Gradio core variables */
+  --body-background-fill: #f6f9ff !important;
+  --background-fill-primary: #ffffff !important;
+  --background-fill-secondary: #f8fafc !important;
+  --block-background-fill: #ffffff !important;
+  --block-border-color: #e4ecf7 !important;
+  --block-label-background-fill: #ffffff !important;
+  --block-label-text-color: #1f2937 !important;
+  --body-text-color: #1f2937 !important;
+  --body-text-color-subdued: #64748b !important;
+  --color-accent-soft: #e4efff !important;
+  --input-background-fill: #ffffff !important;
+  --input-border-color: #e4ecf7 !important;
+  --panel-background-fill: #ffffff !important;
+  --border-color-primary: #e4ecf7 !important;
+  --neutral-50: #f8fafc !important;
+  --neutral-100: #f1f5f9 !important;
+  --neutral-200: #e2e8f0 !important;
+  --neutral-300: #cbd5e1 !important;
+  --neutral-400: #94a3b8 !important;
+  --neutral-500: #64748b !important;
+  --neutral-600: #475569 !important;
+  --neutral-700: #334155 !important;
+  --neutral-800: #1e293b !important;
+  --neutral-900: #0f172a !important;
+  --shadow-drop: 0 1px 3px rgba(0,0,0,0.06) !important;
+  --shadow-drop-lg: 0 14px 40px rgba(37, 99, 235, 0.08) !important;
+  --button-primary-background-fill: #2563eb !important;
+  --button-primary-text-color: #ffffff !important;
+  --checkbox-background-color: #ffffff !important;
+  --checkbox-label-text-color: #1f2937 !important;
+  color-scheme: light !important;
 }
 
 body, .gradio-container {
-  background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
-  color: var(--text);
+  background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%) !important;
+  color: var(--text) !important;
   font-family: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
 }
 
@@ -1567,7 +1600,8 @@ def finalize_status(status_text: str) -> Tuple:
 
 
 def build_demo() -> gr.Blocks:
-    with gr.Blocks(css=CSS, js=JS, elem_id="heta-app") as demo:
+    FORCE_LIGHT = '<script>document.documentElement.classList.remove("dark");document.documentElement.setAttribute("data-theme","light");new MutationObserver(function(m){document.documentElement.classList.remove("dark")}).observe(document.documentElement,{attributes:true,attributeFilter:["class"]})</script>'
+    with gr.Blocks(css=CSS, js=JS, head=FORCE_LIGHT, elem_id="heta-app", theme=gr.themes.Default()) as demo:
         gr.Markdown(
             "# HETA Lite Demo\n"
             "Paper framing: `[NarrativeQA] <s> [SciQ] <s> [Question]`.\n"
@@ -1915,7 +1949,7 @@ def build_demo() -> gr.Blocks:
 
 def main() -> None:
     demo = build_demo()
-    demo.launch(share=True)
+    demo.launch(server_name="0.0.0.0", share=True)
 
 
 if __name__ == "__main__":
