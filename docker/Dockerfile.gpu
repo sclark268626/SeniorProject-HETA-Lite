@@ -19,8 +19,11 @@ RUN pip3 install --no-cache-dir --default-timeout=300 --progress-bar on \
     && pip3 install --no-cache-dir --default-timeout=300 --progress-bar on -r requirements.txt
 
 # Copy application code
-COPY heta_demo.py .
+
 COPY gradio_app.py .
+COPY heta_demo.py .
+COPY heta_batch_runner.py .
+
 
 EXPOSE 7860
 
