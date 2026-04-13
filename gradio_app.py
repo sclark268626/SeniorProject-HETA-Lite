@@ -41,7 +41,7 @@ DEFAULT_MODEL_ID = MODEL_OPTIONS.get(DEFAULT_MODEL_LABEL, MODEL_OPTIONS["Qwen2.5
 MAX_CHARS = 2000
 MAX_TOKENS = 512
 TOP_K = 8
-SEGMENT_SEPARATOR = " <s> "
+SEGMENT_SEPARATOR = ""
 MAX_ANSWER_TOKENS = 16
 QUALITY_CONTEXT_BUDGET = {"fast": 256, "balanced": 384, "accurate": 512}
 
@@ -72,55 +72,55 @@ EXAMPLE_PROMPTS = {
     ),
 }
 
-CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&display=swap');
+js = """
+function() {
+  function setInputValue(elemId, value ) {
+    const root = document.getElementById(elemId);
+    if (!root) return;
+    const input = root.querySelector('input, textarea');
+    if (!input) return;
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
 
-:root {
-  --bg-start: #f6f9ff;
-  --bg-end: #eef3fb;
-  --panel: #ffffff;
-  --border: #e4ecf7;
-  --text: #1f2937;
-  --muted: #64748b;
-  --accent: #2563eb;
-  --accent-weak: #e4efff;
-  --accent-strong: #1d4ed8;
-  --warn: #dc2626;
+  function pulseToken(index) {
+    const target = document.querySelector(`[data-heatmap-token-index="${index}"]`);
+    if (!target) return;
+    target.classList.remove('token-pulse');
+    // Force reflow so repeated clicks re-trigger animation.
+    void target.offsetWidth;
+    target.classList.add('token-pulse');
+    target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  }
+
+  document.addEventListener('click', (event) => {
+    const answerToken = event.target.closest('[data-answer-k]');
+    if (answerToken) {
+      const answerK = answerToken.getAttribute('data-answer-k');
+      setInputValue('answer-token-k', answerK);
+      return;
+    }
+
+    const token = event.target.closest('[data-token-index]');
+    if (!token) return;
+    const idx = token.getAttribute('data-token-index');
+    const role = token.getAttribute('data-role');
+    if (role === 'preview') {
+      setInputValue('target-index', idx);
+      setInputValue('highlight-index', idx);
+      pulseToken(idx);
+      return;
+    }
+    if (role === 'topk' || role === 'heatmap') {
+      setInputValue('highlight-index', idx);
+      pulseToken(idx);
+    }
+  });
 }
+"""
 
-body, .gradio-container {
-  background: linear-gradient(180deg, var(--bg-start) 0%, var(--bg-end) 100%);
-  color: var(--text);
-  font-family: 'Manrope', 'Avenir Next', 'Segoe UI', sans-serif;
-}
-
-#heta-app {
-  max-width: 1220px;
-  margin: 0 auto;
-  padding-bottom: 24px;
-}
-
-#heta-app h1 {
-  font-size: 30px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-
-#heta-app h3 {
-  font-size: 16px;
-  font-weight: 600;
-  margin-top: 18px;
-  color: var(--text);
-}
-
-#heta-app p {
-  color: var(--muted);
-}
-
-#heta-app .main-row {
-  gap: 18px;
-}
-
+css = """
 .stack .panel {
   margin-bottom: 18px;
 }
@@ -150,7 +150,7 @@ body, .gradio-container {
 .token-chip {
   padding: 4px 9px;
   border-radius: 999px;
-  background: #f4f7ff;
+  background: #000000;
   border: 1px solid #e7eefc;
   font-size: 13px;
   cursor: pointer;
@@ -245,7 +245,7 @@ body, .gradio-container {
   border: 1px dashed #c9dcf7;
   border-radius: 12px;
   padding: 12px 14px;
-  background: #f8fbff;
+  background: #000000;
   font-size: 13px;
   color: var(--muted);
 }
@@ -254,7 +254,7 @@ body, .gradio-container {
   border-radius: 12px;
   border: 1px solid #e5edf7;
   padding: 10px 12px;
-  background: #f6faff;
+  background: #000000;
   font-size: 13px;
   color: var(--muted);
 }
@@ -424,57 +424,8 @@ body, .gradio-container {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
 """
-
-JS = """
-function() {
-  function setInputValue(elemId, value) {
-    const root = document.getElementById(elemId);
-    if (!root) return;
-    const input = root.querySelector('input, textarea');
-    if (!input) return;
-    input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-  }
-
-  function pulseToken(index) {
-    const target = document.querySelector(`[data-heatmap-token-index="${index}"]`);
-    if (!target) return;
-    target.classList.remove('token-pulse');
-    // Force reflow so repeated clicks re-trigger animation.
-    void target.offsetWidth;
-    target.classList.add('token-pulse');
-    target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  }
-
-  document.addEventListener('click', (event) => {
-    const answerToken = event.target.closest('[data-answer-k]');
-    if (answerToken) {
-      const answerK = answerToken.getAttribute('data-answer-k');
-      setInputValue('answer-token-k', answerK);
-      return;
-    }
-
-    const token = event.target.closest('[data-token-index]');
-    if (!token) return;
-    const idx = token.getAttribute('data-token-index');
-    const role = token.getAttribute('data-role');
-    if (role === 'preview') {
-      setInputValue('target-index', idx);
-      setInputValue('highlight-index', idx);
-      pulseToken(idx);
-      return;
-    }
-    if (role === 'topk' || role === 'heatmap') {
-      setInputValue('highlight-index', idx);
-      pulseToken(idx);
-    }
-  });
-}
-"""
-
-
 def get_device() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -537,13 +488,14 @@ def score_to_color(score: float, max_score: float) -> str:
     return lerp_color(light, deep, strength)
 
 
+
 def render_token_preview(tokens: List[str], selected_index: Optional[int]) -> str:
     if not tokens:
         return "<div class='status-box'>No tokens yet. Enter a prompt to preview tokens.</div>"
     chips = []
     for idx, token in enumerate(tokens):
         classes = ["token-chip"]
-        if selected_index is not None and idx == selected_index:
+        if selected_index is not None and idx == selected_index + 1:
             classes.append("token-selected")
         token_html = sanitize_token(token)
         chips.append(
@@ -1567,11 +1519,9 @@ def finalize_status(status_text: str) -> Tuple:
 
 
 def build_demo() -> gr.Blocks:
-    with gr.Blocks(css=CSS, js=JS, elem_id="heta-app") as demo:
+    with gr.Blocks(css=css, js=js, elem_id="heta-app") as demo:
         gr.Markdown(
             "# HETA Lite Demo\n"
-            "Paper framing: `[NarrativeQA] <s> [SciQ] <s> [Question]`.\n"
-            "The demo generates the answer onset token first, then computes target-conditioned attribution."
         )
 
         tokens_state = gr.State([])
@@ -1709,10 +1659,12 @@ def build_demo() -> gr.Blocks:
                     with gr.Row():
                         export_json_btn = gr.Button("Export JSON", variant="secondary")
                         export_png_btn = gr.Button("Export PNG", variant="secondary")
-
+                        
                     with gr.Row(elem_classes=["export-row"]):
                         export_json_file_output = gr.File(label="JSON export")
                         export_png_file_output = gr.File(label="PNG export")
+
+
 
                     gr.Markdown("### Run Metadata")
                     metadata = gr.Markdown("", elem_classes=["meta-box"])
