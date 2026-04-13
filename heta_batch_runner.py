@@ -12,7 +12,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from heta_demo import HETAAttributor, MODEL_OPTIONS
 
-SEGMENT_SEPARATOR = " <s> "
+SEGMENT_SEPARATOR = ""
 MAX_ANSWER_TOKENS = 16
 DEFAULT_MODEL_LABEL = next(iter(MODEL_OPTIONS.keys()))
 DEFAULT_MODEL_ID = MODEL_OPTIONS[DEFAULT_MODEL_LABEL]
@@ -99,9 +99,9 @@ def build_segmented_prompt(
     evidence = (evidence or "").strip()
     question = (question or "").strip()
     prefix_text = {
-        "narrative": "[NarrativeQA]",
-        "evidence": "[SciQ]",
-        "question": "[Question]",
+        "narrative": "",
+        "evidence": "",
+        "question": "",
     }
     segment_content = {
         "narrative": narrative,
