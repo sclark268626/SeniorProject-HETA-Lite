@@ -88,7 +88,6 @@ function() {
     const target = document.querySelector(`[data-heatmap-token-index="${index}"]`);
     if (!target) return;
     target.classList.remove('token-pulse');
-    // Force reflow so repeated clicks re-trigger animation.
     void target.offsetWidth;
     target.classList.add('token-pulse');
     target.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
@@ -150,7 +149,7 @@ css = """
 .token-chip {
   padding: 4px 9px;
   border-radius: 999px;
-  background: #000000;
+  background: #f0f4ff;
   border: 1px solid #e7eefc;
   font-size: 13px;
   cursor: pointer;
@@ -158,6 +157,7 @@ css = """
   transition: all 0.15s ease;
   position: relative;
   overflow: visible;
+  color: #1a1a2e;
 }
 
 .token-chip:hover {
@@ -212,6 +212,7 @@ css = """
   cursor: pointer;
   position: relative;
   overflow: visible;
+  color: #1a1a2e;
 }
 
 .topk-list {
@@ -221,6 +222,7 @@ css = """
   max-height: 260px;
   overflow-y: auto;
   padding-right: 4px;
+  color: #1a1a2e;
 }
 
 .topk-item {
@@ -234,6 +236,11 @@ css = """
   cursor: pointer;
   font-size: 13px;
   transition: all 0.15s ease;
+  color: #1a1a2e;
+}
+
+.topk-item span {
+  color: #1a1a2e;
 }
 
 .topk-item:hover {
@@ -245,18 +252,26 @@ css = """
   border: 1px dashed #c9dcf7;
   border-radius: 12px;
   padding: 12px 14px;
-  background: #000000;
+  background: #fafcff;
   font-size: 13px;
-  color: var(--muted);
+  color: #1a1a2e;
+}
+
+.status-box p, .status-box span, .status-box div, .status-box em, .status-box strong {
+  color: #1a1a2e !important;
 }
 
 .meta-box {
   border-radius: 12px;
   border: 1px solid #e5edf7;
   padding: 10px 12px;
-  background: #000000;
+  background: #fafcff;
   font-size: 13px;
-  color: var(--muted);
+  color: #1a1a2e;
+}
+
+.meta-box p, .meta-box span, .meta-box div {
+  color: #1a1a2e !important;
 }
 
 .export-row {
@@ -377,6 +392,7 @@ css = """
   cursor: pointer;
   font-size: 12px;
   transition: all 0.12s ease;
+  color: #1a1a2e;
 }
 
 .answer-chip:hover {
@@ -425,7 +441,28 @@ css = """
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* Force all markdown text to be dark/readable */
+.gr-markdown, .gr-markdown p, .gr-markdown span, .gr-markdown em, .gr-markdown strong {
+  color: #1a1a2e !important;
+}
+
+/* Ensure the panel text is dark */
+.panel, .panel * {
+  color: #1a1a2e;
+}
+
+/* Override any Gradio default dark theme text */
+:root {
+  --text: #1a1a2e;
+  --body-text: #1a1a2e;
+}
+
+body, .gradio-container, .main-row, .stack {
+  color: #1a1a2e;
+}
 """
+
+
 def get_device() -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -486,7 +523,6 @@ def score_to_color(score: float, max_score: float) -> str:
         return rgb_to_hex(light)
     strength = (score / max_score) ** 0.6
     return lerp_color(light, deep, strength)
-
 
 
 def render_token_preview(tokens: List[str], selected_index: Optional[int]) -> str:
@@ -959,7 +995,7 @@ def prepare_prompt(
         tokenizer = load_tokenizer(model_id)
         prompt_bundle = build_segmented_prompt(narrative, evidence, question, tokenizer)
         prompt_ids = tokenizer(prompt_bundle["full_text"], add_special_tokens=False).input_ids
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return preview_return(
             status_text=format_status(
                 "error", "Tokenizer load failed for {}: {}".format(model_label, exc)
@@ -1138,7 +1174,7 @@ def run_attribution(
         tokenizer = load_tokenizer(model_id)
         prompt_bundle = build_segmented_prompt(narrative, evidence, question, tokenizer)
         prompt_ids = tokenizer(prompt_bundle["full_text"], add_special_tokens=False).input_ids
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return run_return(
             status_text=format_status("error", "Setup failed for {}: {}".format(model_label, exc)),
         )
@@ -1182,7 +1218,7 @@ def run_attribution(
             narrative_cap_max=192,
             question_min_tokens=24,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return run_return(
             segment_ranges=prompt_bundle["segments"],
             full_prompt=prompt_bundle["full_text"],
@@ -1492,7 +1528,6 @@ def export_png_file(
     if hi is not None and (hi < 0 or hi >= len(tokens)):
         hi = None
 
-    # Anncy: Comment PNG export of the HTML heatmap could use a canvas capture in the frontend.
     image = render_heatmap_png(tokens, scores, target_index, hi)
     handle, path = tempfile.mkstemp(suffix=".png", prefix="heta_heatmap_")
     os.close(handle)
@@ -1501,7 +1536,6 @@ def export_png_file(
 
 
 def set_running() -> Tuple:
-    # Anncy: Comment request queue position and progress would be shown here with backend support.
     skeleton = "<div class='skeleton-shimmer'></div>"
     return (
         format_status("running", "Attribution running..."),
@@ -1623,7 +1657,6 @@ def build_demo() -> gr.Blocks:
                             step=0.05,
                             label="gamma",
                         )
-                        # Anncy: Comment queue/progress metadata would be rendered in this advanced panel with backend support.
 
             with gr.Column(scale=10, elem_classes=["stack"]):
                 with gr.Column(elem_classes=["panel"]):
@@ -1663,8 +1696,6 @@ def build_demo() -> gr.Blocks:
                     with gr.Row(elem_classes=["export-row"]):
                         export_json_file_output = gr.File(label="JSON export")
                         export_png_file_output = gr.File(label="PNG export")
-
-
 
                     gr.Markdown("### Run Metadata")
                     metadata = gr.Markdown("", elem_classes=["meta-box"])
