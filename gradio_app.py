@@ -28,9 +28,26 @@ MODEL_OPTIONS = {
     "Phi-3-Medium-4K-Instruct (14B)": "microsoft/Phi-3-medium-4k-instruct",
     "Llama-3.1-70B": "meta-llama/Llama-3.1-70B-Instruct",
 }
+
+INPUT_TYPE = {
+    "Next Word Predictor": "Next token predictor",
+    "[NarrativeQA] <s> [SciQ] <s> [Question]": "[NarrativeQA] <s> [SciQ] <s> [Question]", 
+}
+
 DEFAULT_MODEL_LABEL = os.environ.get("HETA_MODEL_LABEL") or os.environ.get(
     "HETA_MODEL", "Qwen2.5-3B"
 )
+
+
+os.environ["Next Word Predictor"] = "Next token predictor"
+INPUT_TYPE_NEXT_WORD_PREDICTOR = os.environ["Next Word Predictor"]
+os.environ["[NarrativeQA] <s> [SciQ] <s> [Question]"] = "[NarrativeQA] <s> [SciQ] <s> [Question]"
+INPUT_TYPE_NSQ = os.environ["[NarrativeQA] <s> [SciQ] <s> [Question]"]
+
+os.environ["CHOSEN_INPUT_TYPE"] = INPUT_TYPE_NSQ
+CHOSEN_INPUT_TYPE = os.environ["CHOSEN_INPUT_TYPE"]
+
+
 if DEFAULT_MODEL_LABEL in MODEL_OPTIONS.values():
     DEFAULT_MODEL_LABEL = next(
         label for label, model_id in MODEL_OPTIONS.items() if model_id == DEFAULT_MODEL_LABEL
@@ -756,7 +773,7 @@ def compute_segment_mass(scores: np.ndarray, segment_ranges: Dict[str, Tuple[int
 
 def render_answer_tokens(answer_tokens: List[str], answer_token_k: int) -> str:
     if not answer_tokens:
-        return "<div class='status-box'>Run attribution to generate answer tokens.</div>"
+        return "<div class='status-box'>Run attribution to generate answer token.</div>"
     chips = []
     for idx, token in enumerate(answer_tokens[:MAX_ANSWER_TOKENS], start=1):
         classes = ["answer-chip"]
@@ -795,11 +812,12 @@ def render_heatmap_strip(
                 segment_starts.add(int(start))
 
     chips = []
-    for idx, (token, score) in enumerate(zip(tokens, score_vec)):
+    for idx, (token, score) in enumerate(zip(tokens, score_vec), start=1):
         classes = ["heat-token"]
         if idx in segment_starts:
-            classes.append("segment-divider")
-        if target_index is not None and idx == target_index:
+            # classes.append("segment-divider")
+            continue
+        if target_index is not None and idx == target_index + 1:
             classes.append("token-target")
         if highlight_index is not None and idx == highlight_index:
             classes.append("token-highlight")
@@ -1552,7 +1570,11 @@ def finalize_status(status_text: str) -> Tuple:
     return status_text, gr.update(interactive=True)
 
 
+
+
 def build_demo() -> gr.Blocks:
+
+    
     with gr.Blocks(css=css, js=js, elem_id="heta-app") as demo:
         gr.Markdown(
             "# HETA Lite Demo\n"
@@ -1568,35 +1590,68 @@ def build_demo() -> gr.Blocks:
         export_state = gr.State(None)
 
         with gr.Row(elem_classes=["main-row"]):
-            with gr.Column(scale=2, elem_classes=["stack"]):
-                with gr.Column(elem_classes=["panel"]):
-                    gr.Markdown("### Input Builder")
-                    model_choice = gr.Dropdown(
-                        choices=list(MODEL_OPTIONS.keys()),
-                        value=DEFAULT_MODEL_LABEL,
-                        label="Select model",
-                    )
+            with gr.Column(scale=4, elem_classes=["stack"]):
+                with gr.Row(elem_classes=["panel"]):
+
+                    with gr.Column():
+                        model_choice = gr.Dropdown(
+                            choices=list(MODEL_OPTIONS.keys()),
+                            value=DEFAULT_MODEL_LABEL,
+                            label="Select model",
+                        )
+
+                        answer_tokens_html = gr.HTML(render_answer_tokens([], 1))
+
+
+
                     narrative_box = gr.Textbox(
                         label="Segment A: Narrative",
-                        lines=4,
+                        lines=5,
                         placeholder="NarrativeQA distractor segment.",
                     )
                     evidence_box = gr.Textbox(
                         label="Segment B: SciQ evidence",
-                        lines=4,
+                        lines=5,
                         placeholder="SciQ evidence-bearing segment.",
                     )
                     question_box = gr.Textbox(
                         label="Question",
-                        lines=3,
+                        lines=5,
                         placeholder="Question used to trigger answer generation.",
                     )
-                    fill_curated_example_btn = gr.Button(
-                        "Fill curated example", variant="secondary"
-                    )
-                    gr.Markdown(
-                        "Character limit: {} | Token limit: {}".format(MAX_CHARS, MAX_TOKENS)
-                    )
+
+                    with gr.Column():
+                        clear_input_btn = gr.Button(
+                            "Clear", variant="secondary"
+                        )
+                        
+                        fill_curated_example_btn = gr.Button(
+                            "Fill curated example", variant="secondary"
+                        )
+
+                        run_btn = gr.Button(
+                            "Run Attribution", variant="secondary"
+                        )
+
+
+
+        with gr.Column(elem_classes=["stack"]):
+            # with gr.Column(elem_classes=["panel"]):
+            segment_mass_md = gr.Markdown(format_segment_mass_markdown({}))
+            # with gr.Column(elem_classes=["panel"]):
+                # gr.Markdown("### Component Breakdown")
+            with gr.Tabs(elem_classes=["breakdown-tabs"]):
+                
+                with gr.Tab("Final"):
+                    final_heatmap = gr.HTML(render_heatmap_strip([], np.array([]), None))
+                with gr.Tab("MT"):
+                    mt_heatmap = gr.HTML(render_heatmap_strip([], np.array([]), None))
+                with gr.Tab("Hessian S"):
+                    s_heatmap = gr.HTML(render_heatmap_strip([], np.array([]), None))
+                with gr.Tab("KL I"):
+                    kl_heatmap = gr.HTML(render_heatmap_strip([], np.array([]), None))
+
+                
 
                 with gr.Column(elem_classes=["panel"]):
                     gr.Markdown("### Token Selection")
@@ -1625,7 +1680,6 @@ def build_demo() -> gr.Blocks:
 
                     with gr.Row():
                         preview_btn = gr.Button("Update Tokens", variant="secondary")
-                        run_btn = gr.Button("Run Attribution", variant="primary")
 
                     answer_token_k = gr.Number(
                         label="Generated answer token k (1-indexed)",
@@ -1635,79 +1689,56 @@ def build_demo() -> gr.Blocks:
                         elem_id="answer-token-k",
                     )
 
-                    with gr.Accordion(
-                        "Advanced Controls", open=False, elem_classes=["advanced-accordion"]
-                    ):
-                        mask_strategy = gr.Dropdown(
-                            choices=MASK_STRATEGIES,
-                            value="drop",
-                            label="Masking strategy",
-                        )
-                        beta_slider = gr.Slider(
-                            minimum=0.0,
-                            maximum=2.0,
-                            value=0.5,
-                            step=0.05,
-                            label="beta",
-                        )
-                        gamma_slider = gr.Slider(
-                            minimum=0.0,
-                            maximum=2.0,
-                            value=0.5,
-                            step=0.05,
-                            label="gamma",
-                        )
 
-            with gr.Column(scale=10, elem_classes=["stack"]):
-                with gr.Column(elem_classes=["panel"]):
-                    gr.Markdown("### Generated Answer")
-                    answer_tokens_html = gr.HTML(render_answer_tokens([], 1))
-                    segment_mass_md = gr.Markdown(format_segment_mass_markdown({}))
 
-                with gr.Column(elem_classes=["panel"]):
-                    gr.Markdown("### Component Breakdown")
-                    with gr.Tabs(elem_classes=["breakdown-tabs"]):
-                        with gr.Tab("Final"):
-                            final_heatmap = gr.HTML(
-                                render_heatmap_strip([], np.array([]), None)
-                            )
-                        with gr.Tab("MT"):
-                            mt_heatmap = gr.HTML(
-                                render_heatmap_strip([], np.array([]), None)
-                            )
-                        with gr.Tab("Hessian S"):
-                            s_heatmap = gr.HTML(
-                                render_heatmap_strip([], np.array([]), None)
-                            )
-                        with gr.Tab("KL I"):
-                            kl_heatmap = gr.HTML(
-                                render_heatmap_strip([], np.array([]), None)
-                            )
 
                 with gr.Column(elem_classes=["panel"]):
                     gr.Markdown("### Top Influential Tokens")
                     topk = gr.HTML(render_topk([], np.array([])))
 
-                    gr.Markdown("### Exports")
-                    with gr.Row():
-                        export_json_btn = gr.Button("Export JSON", variant="secondary")
-                        export_png_btn = gr.Button("Export PNG", variant="secondary")
-                        
-                    with gr.Row(elem_classes=["export-row"]):
-                        export_json_file_output = gr.File(label="JSON export")
-                        export_png_file_output = gr.File(label="PNG export")
-
                     gr.Markdown("### Run Metadata")
                     metadata = gr.Markdown("", elem_classes=["meta-box"])
-
-                    gr.Markdown("### Request Status")
-                    status = gr.Markdown(
-                        format_status("idle", "Ready."), elem_classes=["status-box"]
-                    )
 
         highlight_index = gr.Number(
             value=None, precision=0, elem_id="highlight-index", visible=False
         )
+        
+        with gr.Accordion(
+            "Advanced Controls", open=False, elem_classes=["advanced-accordion"]
+        ):
+            mask_strategy = gr.Dropdown(
+                choices=MASK_STRATEGIES,
+                value="drop",
+                label="Masking strategy",
+            )
+            beta_slider = gr.Slider(
+                minimum=0.0,
+                maximum=2.0,
+                value=0.5,
+                step=0.05,
+                label="beta",
+            )
+            gamma_slider = gr.Slider(
+                minimum=0.0,
+                maximum=2.0,
+                value=0.5,
+                step=0.05,
+                label="gamma",
+            )
+
+        gr.Markdown("### Request Status")
+        status = gr.Markdown(
+            format_status("idle", "Ready."), elem_classes=["status-box"]
+        )
+
+        gr.Markdown("### Exports")
+        with gr.Row():
+            export_json_btn = gr.Button("Export JSON", variant="secondary")
+            export_png_btn = gr.Button("Export PNG", variant="secondary")
+    
+        with gr.Row(elem_classes=["export-row"]):
+            export_json_file_output = gr.File(label="JSON export")
+            export_png_file_output = gr.File(label="PNG export")
 
         preview_outputs = [
             tokens_state,
@@ -1775,6 +1806,20 @@ def build_demo() -> gr.Blocks:
             outputs=preview_outputs,
         )
 
+        clear_input_btn.click(
+            lambda: (
+                "",
+                "",
+                "",
+            ),
+            inputs=[],
+            outputs=[narrative_box, evidence_box, question_box],
+        ).then(
+            prepare_prompt,
+            inputs=[narrative_box, evidence_box, question_box, model_choice],
+            outputs=preview_outputs,
+        )
+
         preview_btn.click(
             prepare_prompt,
             inputs=[narrative_box, evidence_box, question_box, model_choice],
@@ -1786,6 +1831,9 @@ def build_demo() -> gr.Blocks:
             inputs=[narrative_box, evidence_box, question_box, model_choice],
             outputs=preview_outputs,
         )
+
+
+
 
         target_index.change(
             sync_target_index,

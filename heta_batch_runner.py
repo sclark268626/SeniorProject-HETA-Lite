@@ -13,7 +13,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from heta_demo import HETAAttributor, MODEL_OPTIONS
 
 SEGMENT_SEPARATOR = ""
-MAX_ANSWER_TOKENS = 16
+MAX_ANSWER_TOKENS = 1
 DEFAULT_MODEL_LABEL = next(iter(MODEL_OPTIONS.keys()))
 DEFAULT_MODEL_ID = MODEL_OPTIONS[DEFAULT_MODEL_LABEL]
 DEFAULT_HVP_SAMPLES = 1
@@ -23,7 +23,9 @@ DEFAULT_NARRATIVE_CAP_RATIO = 1.0
 DEFAULT_NARRATIVE_CAP_MIN = 32
 DEFAULT_NARRATIVE_CAP_MAX = 192
 DEFAULT_QUESTION_MIN_TOKENS = 24
-ANSWER_CUE = "\nAnswer:"
+ANSWER_CUE = ""
+
+banned_tokens = ["[NarrativeQA]", "<s>", "[SciQ]", "[Question]"]
 
 
 def get_device() -> str:
@@ -60,7 +62,7 @@ def get_model_label(model_choice: str) -> str:
 
 @lru_cache(maxsize=8)
 def load_tokenizer(model_name: str) -> AutoTokenizer:
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True, extra_special_tokens = banned_tokens, skip_special_tokens=True)
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     return tokenizer
@@ -85,7 +87,7 @@ def load_attributor(model_name: str) -> HETAAttributor:
     except TypeError:
         model = AutoModelForCausalLM.from_pretrained(
             model_name,
-            torch_dtype=dtype,
+            dtype=dtype,
             **common_kwargs,
         )
     model.eval()
@@ -131,35 +133,35 @@ def build_segmented_prompt(
     narrative_content_start_char = narrative_seg_start_char + len(prefix_text["narrative"])
     evidence_content_start_char = evidence_seg_start_char + len(prefix_text["evidence"])
     question_content_start_char = question_seg_start_char + len(prefix_text["question"])
-    if narrative:
-        narrative_content_start_char += 1
-    if evidence:
-        evidence_content_start_char += 1
-    if question:
-        question_content_start_char += 1
+    # if narrative:
+    #     narrative_content_start_char += 1
+    # if evidence:
+    #     evidence_content_start_char += 1
+    # if question:
+    #     question_content_start_char += 1
     narrative_content_end_char = narrative_content_start_char + len(narrative)
     evidence_content_end_char = evidence_content_start_char + len(evidence)
     question_content_end_char = question_content_start_char + len(question)
 
     def approx_spans() -> Dict[str, Tuple[int, int]]:
-        separator_ids = tokenizer(SEGMENT_SEPARATOR, add_special_tokens=False).input_ids
-        narrative_ids = tokenizer(segment_text["narrative"], add_special_tokens=False).input_ids
-        evidence_ids = tokenizer(segment_text["evidence"], add_special_tokens=False).input_ids
-        question_ids = tokenizer(segment_text["question"], add_special_tokens=False).input_ids
+        separator_ids = tokenizer(SEGMENT_SEPARATOR, add_special_tokens=True, skip_special_tokens=True).input_ids
+        narrative_ids = tokenizer(segment_text["narrative"], add_special_tokens=True, skip_special_tokens=True).input_ids
+        evidence_ids = tokenizer(segment_text["evidence"], add_special_tokens=True, skip_special_tokens=True).input_ids
+        question_ids = tokenizer(segment_text["question"], add_special_tokens=True, skip_special_tokens=True).input_ids
 
         narrative_prefix_ids = tokenizer(
-            "{} ".format(prefix_text["narrative"]), add_special_tokens=False
+            "{} ".format(prefix_text["narrative"]), add_special_tokens=True, skip_special_tokens=True
         ).input_ids
         evidence_prefix_ids = tokenizer(
-            "{} ".format(prefix_text["evidence"]), add_special_tokens=False
+            "{} ".format(prefix_text["evidence"]), add_special_tokens=True, skip_special_tokens=True
         ).input_ids
         question_prefix_ids = tokenizer(
-            "{} ".format(prefix_text["question"]), add_special_tokens=False
+            "{} ".format(prefix_text["question"]), add_special_tokens=True, skip_special_tokens=True
         ).input_ids
 
-        narrative_content_ids = tokenizer(narrative, add_special_tokens=False).input_ids
-        evidence_content_ids = tokenizer(evidence, add_special_tokens=False).input_ids
-        question_content_ids = tokenizer(question, add_special_tokens=False).input_ids
+        narrative_content_ids = tokenizer(narrative, add_special_tokens=True, skip_special_tokens=True).input_ids
+        evidence_content_ids = tokenizer(evidence, add_special_tokens=True, skip_special_tokens=True).input_ids
+        question_content_ids = tokenizer(question, add_special_tokens=True, skip_special_tokens=True).input_ids
 
         narrative_segment_start = 0
         narrative_segment_end = len(narrative_ids)
@@ -192,7 +194,7 @@ def build_segmented_prompt(
     if use_offsets:
         try:
             encoded = tokenizer(
-                full_text, add_special_tokens=False, return_offsets_mapping=True
+                full_text, add_special_tokens=True, return_offsets_mapping=True, skip_special_tokens=True
             )
             offsets = encoded.get("offset_mapping", [])
 
@@ -233,10 +235,10 @@ def build_segmented_prompt(
 def _encode_segment_token_parts(
     tokenizer: AutoTokenizer, tag: str, content: str
 ) -> Tuple[List[int], List[int], List[int]]:
-    marker_ids = tokenizer(tag, add_special_tokens=False).input_ids
+    marker_ids = tokenizer(tag, add_special_tokens=True, skip_special_tokens=True).input_ids
     clean_content = (content or "").strip()
     content_ids = (
-        tokenizer(f" {clean_content}", add_special_tokens=False).input_ids
+        tokenizer(f" {clean_content}", add_special_tokens=True, skip_special_tokens=True).input_ids
         if clean_content
         else []
     )
@@ -301,8 +303,8 @@ def _pack_context_ids(
     narrative_cap_max: int,
     question_min_tokens: int,
 ) -> Dict[str, Any]:
-    sep_ids = tokenizer(SEGMENT_SEPARATOR, add_special_tokens=False).input_ids
-    cue_ids = tokenizer(ANSWER_CUE, add_special_tokens=False).input_ids
+    sep_ids = tokenizer(SEGMENT_SEPARATOR, add_special_tokens=True).input_ids
+    cue_ids = tokenizer(ANSWER_CUE, add_special_tokens=True).input_ids
 
     n_marker, n_content, n_full = _encode_segment_token_parts(
         tokenizer, "[NarrativeQA]", narrative
@@ -548,7 +550,7 @@ def generate_answer_tokens(
             logits = model(**inputs, use_cache=False).logits[0, -1, :]
             answer_token_ids = [int(torch.argmax(logits).item())]
     answer_tokens = [
-        tokenizer.decode([token_id], skip_special_tokens=False)
+        tokenizer.decode([token_id], skip_special_tokens=True)
         for token_id in answer_token_ids
     ]
     answer_text = tokenizer.decode(answer_token_ids, skip_special_tokens=True)
@@ -584,10 +586,10 @@ def _first_gold_answer_token_id(
     if with_prefix_space:
         variants = [f" {answer}", answer]
     for text in variants:
-        ids = tokenizer(text, add_special_tokens=False).input_ids
+        ids = tokenizer(text, add_special_tokens=True).input_ids
         if not ids:
             continue
-        tok = tokenizer.decode([int(ids[0])], skip_special_tokens=False)
+        tok = tokenizer.decode([int(ids[0])], skip_special_tokens=True)
         if _is_structural_token(tok):
             continue
         return int(ids[0])
@@ -1072,7 +1074,7 @@ def run_one_example(
     )
     final_scores = normalize_on_indices(final_scores, norm_indices)
 
-    tokens = [tokenizer.decode([token_id], skip_special_tokens=False) for token_id in context_ids]
+    tokens = [tokenizer.decode([token_id], skip_special_tokens=True) for token_id in context_ids]
     segment_mass = _segment_mass_abs(final_scores, segment_ranges)
 
     return {
@@ -1081,7 +1083,7 @@ def run_one_example(
         "tokens": tokens,
         "context_token_ids": [int(x) for x in context_ids],
         "answer_tokens": answer_tokens,
-        "onset_token_text": tokenizer.decode([target_token_id], skip_special_tokens=False),
+        "onset_token_text": tokenizer.decode([target_token_id], skip_special_tokens=True),
         "generated_onset_token_text": answer_tokens[k - 1],
         "target_k": int(requested_k),
         "generated_target_k": int(k),
